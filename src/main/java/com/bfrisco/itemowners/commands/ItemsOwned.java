@@ -87,7 +87,13 @@ public class ItemsOwned implements CommandExecutor {
 
         Component message = ChatMessageGenerator.generateHeader(page, ownerName);
         try {
-            message = message.append(ChatMessageGenerator.generate(page, ownerName));
+            message = message
+                    .append(ChatMessageGenerator.generate(page, ownerName))
+                    .append(ChatMessageGenerator.generatePagination(
+                            "/itemsowned " + ownerName,
+                            page.getCurrentPage(),
+                            page.getTotalPages()
+                    ));
         } catch (ChatMessageGeneratorException e) {
             message = message.append(Component.text(e.getMessage(), NamedTextColor.RED));
         } catch (IOException | RuntimeException e) {

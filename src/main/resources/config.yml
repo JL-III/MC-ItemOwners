@@ -10,7 +10,7 @@ items: [
     'ELYTRA', 'BOW', 'CROSSBOW', 'FISHING_ROD', 'TRIDENT'
 ]
 
-# How long in days the item events should be stored
+# How long detailed item history should be stored. The newest event for each item is always retained.
 retention-period: 14
 
 # Worlds that players can not own items on

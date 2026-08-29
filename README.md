@@ -2,6 +2,7 @@
 
 ItemOwners is a plugin that allows players to own items and view an items history.
 - Every event on the item, such as storing the item in a chest, destroying, breaking, and everything between is tracked and stored for a configurable duration of time.
+- The newest event for each item is retained indefinitely as its last known state, even after older detailed history expires.
 - Players can (configurable by permissions) view their own items to track down what has happened to it, such as if they had given the item to another player and it was lost.
 - Moderators or admins can (configurable by permissions) view all items and their events.
 - Owners can recover an item after a confirmed despawn by paying a configurable Vault economy fee.
@@ -18,7 +19,7 @@ Hovering over **[loc]** will show you the location, and hovering over **[pl]** w
 #### ItemsOwned
 ![ItemsOwned](https://i.imgur.com/H0Q70VM.jpg)
 
-Hovering over the Item ID shows the native Minecraft item tooltip, including its display name, formatted lore, visible enchants, flags, and metadata. Clicking an ID in `/itemsowned` opens that item's history directly.
+Hovering over the Item ID shows the native Minecraft item tooltip, including its display name, formatted lore, visible enchants, flags, and metadata. Clicking an ID in `/itemsowned` opens that item's history directly. Multi-page `/itemsowned` and `/itemhistory` results include clickable Previous and Next controls; page numbers can still be supplied in the command.
 
 
 

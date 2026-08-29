@@ -146,6 +146,30 @@ public final class ChatMessageGenerator {
         return message;
     }
 
+    public static Component generatePagination(String baseCommand, int currentPage, int totalPages) {
+        if (totalPages <= 1 || currentPage < 1 || currentPage > totalPages) {
+            return Component.empty();
+        }
+
+        return Component.text()
+                .appendNewline()
+                .append(generatePageLink("Previous", baseCommand, currentPage - 1, currentPage > 1))
+                .append(Component.text(" | ", NamedTextColor.DARK_GRAY))
+                .append(generatePageLink("Next", baseCommand, currentPage + 1, currentPage < totalPages))
+                .build();
+    }
+
+    private static Component generatePageLink(String label, String baseCommand, int page, boolean enabled) {
+        Component link = Component.text("[" + label + "]", enabled ? NamedTextColor.YELLOW : NamedTextColor.DARK_GRAY);
+        if (!enabled) {
+            return link;
+        }
+
+        return link
+                .hoverEvent(Component.text("Go to page " + page, NamedTextColor.GRAY))
+                .clickEvent(ClickEvent.runCommand(baseCommand + " " + page));
+    }
+
     private static Component generateItemIdLink(
             String itemId,
             String itemData,
