@@ -1,13 +1,16 @@
 package com.bfrisco.itemowners.util;
 
+import com.bfrisco.itemowners.database.ItemPage;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ChatMessageGeneratorTest {
     @Test
@@ -34,6 +37,19 @@ class ChatMessageGeneratorTest {
         Component pagination = ChatMessageGenerator.generatePagination("/itemsowned Player", 1, 1);
 
         assertEquals(List.of(), runCommands(pagination));
+    }
+
+    @Test
+    void itemsOwnedHeaderPlacesNavigationAfterPlayerName() {
+        ItemPage page = new ItemPage();
+        page.setCurrentPage(1);
+        page.setTotalPages(3);
+
+        Component header = ChatMessageGenerator.generateHeader(page, "Player");
+
+        assertTrue(PlainTextComponentSerializer.plainText().serialize(header)
+                .contains("Player: Player [Previous] | [Next]"));
+        assertEquals(List.of("/itemsowned Player 2"), runCommands(header));
     }
 
     private static List<String> runCommands(Component component) {

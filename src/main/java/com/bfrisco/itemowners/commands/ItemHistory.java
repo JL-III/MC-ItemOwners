@@ -102,13 +102,7 @@ public class ItemHistory implements CommandExecutor {
         try {
             Component message = ChatMessageGenerator.generateHeader(page, itemId, item.getData(), ownerName);
             try {
-                message = message
-                        .append(ChatMessageGenerator.generate(page))
-                        .append(ChatMessageGenerator.generatePagination(
-                                "/itemhistory " + itemId,
-                                page.getCurrentPage(),
-                                page.getTotalPages()
-                        ));
+                message = message.append(ChatMessageGenerator.generate(page));
             } catch (ChatMessageGeneratorException e) {
                 message = message.append(Component.text(e.getMessage(), NamedTextColor.RED));
             }

@@ -42,6 +42,11 @@ public final class ChatMessageGenerator {
                 .appendNewline()
                 .append(Component.text("Item ID: ", NamedTextColor.GOLD))
                 .append(generateItemIdLink(itemId, itemData, ownerName, false, false))
+                .append(generatePagination(
+                        "/itemhistory " + itemId,
+                        page.getCurrentPage(),
+                        page.getTotalPages()
+                ))
                 .appendNewline()
                 .build();
     }
@@ -59,6 +64,11 @@ public final class ChatMessageGenerator {
                 .appendNewline()
                 .append(Component.text("Player: ", NamedTextColor.GOLD))
                 .append(Component.text(playerName, NamedTextColor.RED))
+                .append(generatePagination(
+                        "/itemsowned " + playerName,
+                        page.getCurrentPage(),
+                        page.getTotalPages()
+                ))
                 .appendNewline()
                 .build();
     }
@@ -152,7 +162,7 @@ public final class ChatMessageGenerator {
         }
 
         return Component.text()
-                .appendNewline()
+                .appendSpace()
                 .append(generatePageLink("Previous", baseCommand, currentPage - 1, currentPage > 1))
                 .append(Component.text(" | ", NamedTextColor.DARK_GRAY))
                 .append(generatePageLink("Next", baseCommand, currentPage + 1, currentPage < totalPages))
