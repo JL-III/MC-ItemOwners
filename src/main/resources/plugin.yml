@@ -1,5 +1,5 @@
 name: ItemOwners
-version: 1.0.2
+version: 1.0.3
 main: com.bfrisco.itemowners.ItemOwners
 author: bfrisco
 description: Enables players to own and track their items.
