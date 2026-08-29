@@ -4,11 +4,16 @@ import com.bfrisco.itemowners.ItemOwners;
 import com.bfrisco.itemowners.constants.LogMessages;
 import com.bfrisco.itemowners.database.ItemEventRepository;
 import com.bfrisco.itemowners.database.ItemEventType;
+import com.bfrisco.itemowners.database.ItemRecoveryRepository;
+import com.bfrisco.itemowners.database.ItemRepository;
 import com.bfrisco.itemowners.util.CIConfirmationDetector;
+import com.bfrisco.itemowners.util.ItemSerialization;
 import net.kyori.adventure.text.TextComponent;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.*;
 import org.bukkit.event.inventory.*;
@@ -139,13 +144,70 @@ public class OwnedItemListener implements Listener {
         runAsync(() -> ItemEventRepository.save(ItemEventType.BROKE, itemId, event.getPlayer()));
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onItemDespawnEvent(ItemDespawnEvent event) {
-        String itemId = ItemOwners.getItemId(event.getEntity().getItemStack());
+        ItemStack snapshot = event.getEntity().getItemStack().clone();
+        String itemId = ItemOwners.getItemId(snapshot);
         if (itemId == null) return; // Item despawn event does not involve owned items.
+        if (ItemOwners.isNotValid(snapshot)) {
+            ItemOwners.getBukkitLogger().warning("Owned item " + itemId + " despawned with an invalid material or stack size; recovery was not opened.");
+            return;
+        }
 
-        log(String.format(LogMessages.DESPAWNED, itemId));
-        runAsync(() -> ItemEventRepository.save(ItemEventType.DESPAWNED, itemId, event.getLocation()));
+        String itemData;
+        try {
+            itemData = ItemSerialization.toBase64(snapshot);
+        } catch (IllegalStateException e) {
+            ItemOwners.getBukkitLogger().warning("Could not snapshot despawning item " + itemId + ": " + e.getMessage());
+            return;
+        }
+
+        UUID sourceEntityId = event.getEntity().getUniqueId();
+        Location location = event.getLocation();
+        String world = location.getWorld() == null ? null : location.getWorld().getName();
+        int x = location.getBlockX();
+        int y = location.getBlockY();
+        int z = location.getBlockZ();
+        long lostAt = System.currentTimeMillis();
+
+        // ItemDespawnEvent is cancellable. Verify on the next tick that the entity was actually removed,
+        // including cancellations made by another MONITOR-priority listener.
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            Entity entity = Bukkit.getEntity(sourceEntityId);
+            if (entity != null && entity.isValid()) {
+                return;
+            }
+
+            runAsync(() -> {
+                try {
+                    com.bfrisco.itemowners.database.Item item = ItemRepository.findById(itemId);
+                    if (item == null) {
+                        ItemOwners.getBukkitLogger().warning("Despawning item " + itemId + " is not in the database.");
+                        return;
+                    }
+
+                    boolean recorded = ItemRecoveryRepository.recordLoss(
+                            itemId,
+                            item.getOwnerId(),
+                            sourceEntityId.toString(),
+                            itemData,
+                            lostAt,
+                            world,
+                            x,
+                            y,
+                            z
+                    );
+                    if (recorded) {
+                        ItemRepository.updateData(itemId, itemData);
+                    }
+
+                    log(String.format(LogMessages.DESPAWNED, itemId));
+                    ItemEventRepository.save(ItemEventType.DESPAWNED, itemId, null, world, x, y, z);
+                } catch (Exception e) {
+                    ItemOwners.getBukkitLogger().warning("Could not record despawn recovery for " + itemId + ": " + e.getMessage());
+                }
+            });
+        });
     }
 
     @EventHandler

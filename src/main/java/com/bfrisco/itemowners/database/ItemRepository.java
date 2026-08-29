@@ -9,7 +9,6 @@ import com.j256.ormlite.table.TableUtils;
 import java.io.File;
 import java.sql.Date;
 import java.sql.SQLException;
-import java.util.HashMap;
 import java.util.List;
 
 public final class ItemRepository {
@@ -64,6 +63,16 @@ public final class ItemRepository {
 
     public static Item findById(String itemId) throws SQLException {
         return repository.queryForId(itemId);
+    }
+
+    public static int updateData(String itemId, String data) throws SQLException {
+        Item item = findById(itemId);
+        if (item == null) {
+            return 0;
+        }
+
+        item.setData(data);
+        return repository.update(item);
     }
 
     public static void lastEventDestruction(String itemId, Boolean destructed) throws SQLException {

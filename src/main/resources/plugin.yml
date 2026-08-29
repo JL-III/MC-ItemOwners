@@ -1,10 +1,10 @@
 name: ItemOwners
-version: 1.0.2
+version: 1.0.3
 main: com.bfrisco.itemowners.ItemOwners
 author: bfrisco
 description: Enables players to own and track their items.
 api-version: 1.18
-softdepend: [SafeTrade, mcMMO]
+softdepend: [Vault]
 commands:
   own:
     description: Own an item that is in your hand
@@ -18,6 +18,9 @@ commands:
   itemsowned:
     description: View the items owned by a specified player.
     usage: §7/<command> <player name> (page)
+  recoveritem:
+    description: Recover an owned item after a confirmed despawn.
+    usage: §7/<command> <item id>
 
 permissions:
   ItemOwners.*:
@@ -31,6 +34,7 @@ permissions:
       ItemOwners.list.all: true
       ItemOwners.view.own: true
       ItemOwners.view.all: true
+      ItemOwners.recover.own: true
   ItemOwners.own:
     description: Allows the player to own items
   ItemOwners.disown.own:
@@ -45,3 +49,5 @@ permissions:
     description: Allows the player to see their own tools events
   ItemOwners.view.all:
     description: Allows the player to see all tool events
+  ItemOwners.recover.own:
+    description: Allows the player to recover their own despawned items

@@ -24,5 +24,6 @@ public enum ItemEventType {
     SALVAGED,
 
     TRADED,
-    GRINDED
+    GRINDED,
+    RECOVERED
 }

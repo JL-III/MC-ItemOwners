@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public final class ItemEventRepository {
+    private static final String ITEM_DATE_ID_INDEX = "idx_events_item_date_id";
     private static Dao<ItemEvent, Long> repository;
     private static final long PAGE_SIZE = 7;
     private static List<String> DELETE_EVENT_TYPES;
@@ -24,6 +25,8 @@ public final class ItemEventRepository {
         TableUtils.createTableIfNotExists(source, ItemEvent.class);
 
         repository = DaoManager.createDao(source, ItemEvent.class);
+        repository.executeRaw("CREATE INDEX IF NOT EXISTS " + ITEM_DATE_ID_INDEX
+                + " ON events (itemId, date DESC, id DESC)");
         DELETE_EVENT_TYPES = Arrays.asList(
                 ItemEventType.CLEARED_INVENTORY.name(),
                 ItemEventType.BROKE.name(),
@@ -79,6 +82,27 @@ public final class ItemEventRepository {
         save(event);
     }
 
+    public static void save(
+            ItemEventType type,
+            String itemId,
+            String playerId,
+            String world,
+            int x,
+            int y,
+            int z
+    ) {
+        ItemEvent event = new ItemEvent();
+        event.setItemId(itemId);
+        event.setDate(new Date(System.currentTimeMillis()));
+        event.setItemEventType(type.name());
+        event.setWorld(world);
+        event.setX(x);
+        event.setY(y);
+        event.setZ(z);
+        event.setPlayerId(playerId);
+        save(event);
+    }
+
     public static void save(ItemEvent e) {
         try {
             repository.create(e);
@@ -106,6 +130,7 @@ public final class ItemEventRepository {
                 .offset((page - 1) * PAGE_SIZE)
                 .limit(PAGE_SIZE)
                 .orderBy("date", false)
+                .orderBy("id", false)
                 .where().eq("itemId", itemId).query();
 
         result.setResult(events);
@@ -115,7 +140,15 @@ public final class ItemEventRepository {
 
     public static int deleteBefore(Date date) throws SQLException {
         DeleteBuilder<ItemEvent, Long> deleteBuilder = repository.deleteBuilder();
-        deleteBuilder.where().lt("date", date);
+        deleteBuilder.where()
+                .lt("date", date)
+                .and()
+                .raw("EXISTS ("
+                        + "SELECT 1 FROM events AS newer "
+                        + "WHERE newer.itemId = events.itemId "
+                        + "AND (newer.date > events.date "
+                        + "OR (newer.date = events.date AND newer.id > events.id))"
+                        + ")");
         return deleteBuilder.delete();
     }
 

@@ -5,7 +5,9 @@ import com.bfrisco.itemowners.database.ItemRepository;
 import com.bfrisco.itemowners.util.ItemIDGenerator;
 import com.bfrisco.itemowners.util.ItemSerialization;
 import com.bfrisco.itemowners.util.RateLimiter;
-import org.apache.commons.lang.WordUtils;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -18,7 +20,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
 
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Own implements CommandExecutor {
     private static final String OWNER_FORMAT = "Owner: %s";
@@ -67,35 +70,16 @@ public class Own implements CommandExecutor {
            return true;
         }
 
+        ItemStack originalItem = item.clone();
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
                 String itemId = generateItemId();
-
-                // Give display name to items which do not already have one
-                ItemMeta meta = item.getItemMeta();
-                if (!meta.hasDisplayName()) {
-                    String name = item.getType().toString()
-                            .toLowerCase(Locale.ROOT)
-                            .replace("_", " ");
-                    meta.setDisplayName(WordUtils.capitalize(name));
-                    item.setItemMeta(meta);
-                }
-
-                // Serialize and store the item
-                String data = ItemSerialization.toBase64(item);
-                ItemRepository.save(itemId, player.getUniqueId().toString(), data);
-
-                // Add lore to item
-                List<String> lore = addItemLore(item.getItemMeta().getLore(), itemId, player.getName());
-                meta.setLore(lore);
-                item.setItemMeta(meta);
-
-                ItemOwners.getBukkitLogger().info("Player " + player.getName() + " has owned an item with generated ID: " + itemId);
-                player.sendMessage(ChatColor.GREEN + "Successfully owned item with generated ID: " + itemId + ". Please take a screenshot of your " +
-                        "owned tool with F2, keep the ID for your records");
+                Bukkit.getScheduler().runTask(plugin, () -> prepareAndStoreItem(player, originalItem, itemId));
             } catch (Exception e) {
                 ItemOwners.getBukkitLogger().warning("Error occurred while generating item ID: " + e.getMessage());
-                player.sendMessage(ChatColor.RED + "Unexpected error occurred while generating and storing item ID.");
+                Bukkit.getScheduler().runTask(plugin, () -> player.sendMessage(
+                        ChatColor.RED + "Unexpected error occurred while generating and storing item ID."
+                ));
             }
         });
 
@@ -112,10 +96,52 @@ public class Own implements CommandExecutor {
         return itemId;
     }
 
-    private List<String> addItemLore(List<String> lore, String id, String playerName) {
-        if (lore == null) lore = new ArrayList<>();
-        lore.add(ChatColor.RED + String.format(OWNER_FORMAT, playerName));
-        lore.add(ChatColor.RED + String.format(ITEM_ID_FORMAT, id));
-        return lore;
+    private void prepareAndStoreItem(Player player, ItemStack originalItem, String itemId) {
+        if (!player.isOnline()) {
+            return;
+        }
+
+        ItemStack currentItem = player.getInventory().getItemInMainHand();
+        if (!currentItem.isSimilar(originalItem) || currentItem.getAmount() != originalItem.getAmount()) {
+            player.sendMessage(ChatColor.RED + "The item in your main hand changed. Please try again.");
+            return;
+        }
+
+        ItemStack ownedItem = currentItem.clone();
+        ItemMeta meta = ownedItem.getItemMeta();
+        List<Component> lore = meta.lore();
+        lore = lore == null ? new ArrayList<>() : new ArrayList<>(lore);
+        lore.add(Component.text(String.format(OWNER_FORMAT, player.getName()), NamedTextColor.RED)
+                .decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text(String.format(ITEM_ID_FORMAT, itemId), NamedTextColor.RED)
+                .decoration(TextDecoration.ITALIC, false));
+        meta.lore(lore);
+        ownedItem.setItemMeta(meta);
+
+        try {
+            String data = ItemSerialization.toBase64(ownedItem);
+            ItemRepository.save(itemId, player.getUniqueId().toString(), data);
+        } catch (Exception e) {
+            ItemOwners.getBukkitLogger().warning("Error occurred while storing item " + itemId + ": " + e.getMessage());
+            player.sendMessage(ChatColor.RED + "Unexpected error occurred while storing the item ID.");
+            return;
+        }
+
+        try {
+            player.getInventory().setItemInMainHand(ownedItem);
+        } catch (RuntimeException e) {
+            try {
+                ItemRepository.delete(itemId);
+            } catch (SQLException rollbackError) {
+                ItemOwners.getBukkitLogger().warning("Could not roll back unused item ID " + itemId + ": " + rollbackError.getMessage());
+            }
+            ItemOwners.getBukkitLogger().warning("Could not place ownership metadata on item " + itemId + ": " + e.getMessage());
+            player.sendMessage(ChatColor.RED + "Unexpected error occurred while updating the owned item.");
+            return;
+        }
+
+        ItemOwners.getBukkitLogger().info("Player " + player.getName() + " has owned an item with generated ID: " + itemId);
+        player.sendMessage(ChatColor.GREEN + "Successfully owned item with generated ID: " + itemId + ". Please take a screenshot of your " +
+                "owned tool with F2, keep the ID for your records");
     }
 }
