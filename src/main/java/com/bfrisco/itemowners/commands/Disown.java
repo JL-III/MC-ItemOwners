@@ -4,6 +4,7 @@ import com.bfrisco.itemowners.ItemOwners;
 import com.bfrisco.itemowners.constants.ItemOwnerPermissions;
 import com.bfrisco.itemowners.database.Item;
 import com.bfrisco.itemowners.database.ItemEventRepository;
+import com.bfrisco.itemowners.database.ItemRecoveryRepository;
 import com.bfrisco.itemowners.database.ItemRepository;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -15,8 +16,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
 
-import java.sql.SQLException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,9 +29,8 @@ public class Disown implements CommandExecutor {
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!(sender instanceof Player)) return false;
-        Player player = (Player) sender;
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String[] args) {
+        if (!(sender instanceof Player player)) return false;
 
         if (!player.hasPermission(ItemOwnerPermissions.DISOWN)) {
             player.sendMessage(ChatColor.RED + "You do not have permission to disown items.");
@@ -72,6 +72,7 @@ public class Disown implements CommandExecutor {
 
                 ItemEventRepository.delete(itemId);
                 ItemRepository.delete(itemId);
+                ItemRecoveryRepository.invalidateOpenBeforePayment(itemId);
             } catch (Exception e) {
                 e.printStackTrace();
                 player.sendMessage("An internal error occurred while executing this command.");

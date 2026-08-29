@@ -79,6 +79,27 @@ public final class ItemEventRepository {
         save(event);
     }
 
+    public static void save(
+            ItemEventType type,
+            String itemId,
+            String playerId,
+            String world,
+            int x,
+            int y,
+            int z
+    ) {
+        ItemEvent event = new ItemEvent();
+        event.setItemId(itemId);
+        event.setDate(new Date(System.currentTimeMillis()));
+        event.setItemEventType(type.name());
+        event.setWorld(world);
+        event.setX(x);
+        event.setY(y);
+        event.setZ(z);
+        event.setPlayerId(playerId);
+        save(event);
+    }
+
     public static void save(ItemEvent e) {
         try {
             repository.create(e);

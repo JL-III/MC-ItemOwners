@@ -11,4 +11,6 @@ public interface ItemOwnerPermissions {
 
     String VIEW_OWN_TOOL_EVENTS = "ItemOwners.view.own";
     String VIEW_ALL_TOOL_EVENTS = "ItemOwners.view.all";
+
+    String RECOVER = "ItemOwners.recover.own";
 }

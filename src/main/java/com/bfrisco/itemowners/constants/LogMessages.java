@@ -21,8 +21,8 @@ public interface LogMessages {
     String BROKE = "%s broke";
     String DISPOSED = "%s was disposed by player %s";
     String CLEARED_INVENTORY = "%s was cleared through clearinventory command by %s";
-    String SALVAGED = "%s was salvaged by player %s";
     String GRINDED = "%s was used in a grindstone by player %s";
+    String RECOVERED = "%s was recovered by player %s";
 
     String TRADED = "%s was traded by player %s to player %s";
 }

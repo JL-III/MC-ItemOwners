@@ -5,74 +5,88 @@ import com.bfrisco.itemowners.database.ItemEvent;
 import com.bfrisco.itemowners.database.ItemEventPage;
 import com.bfrisco.itemowners.database.ItemPage;
 import com.bfrisco.itemowners.exceptions.ChatMessageGeneratorException;
-import net.md_5.bungee.api.chat.*;
-import net.md_5.bungee.api.chat.TextComponent;
-import net.md_5.bungee.api.chat.hover.content.Text;
-import org.apache.commons.lang.WordUtils;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.Locale;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public final class ChatMessageGenerator {
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("[M/d/yy hh:mm a]");
+    private static final PlainTextComponentSerializer PLAIN_TEXT = PlainTextComponentSerializer.plainText();
+    private static final String ITEM_ID_PREFIX = "Item ID: ";
 
-    public static TextComponent generateHeader(ItemEventPage page, String itemId, String itemData) throws IOException {
-        TextComponent message = new net.md_5.bungee.api.chat.TextComponent(ChatColor.YELLOW + " ---- " + ChatColor.GOLD + "ItemHistory"
-                + ChatColor.YELLOW + " -- " + ChatColor.GOLD + "Page " + ChatColor.RED + page.getCurrentPage() +
-                ChatColor.GOLD + "/" + ChatColor.RED + page.getTotalPages() + ChatColor.YELLOW + " ----\n");
-
-        message.addExtra(ChatColor.GOLD + "Item ID: ");
-
-        TextComponent id = new TextComponent(ChatColor.GOLD + "[" + ChatColor.RED + itemId + ChatColor.GOLD + "]\n");
-        id.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, generateTooltip(itemData)));
-        id.setClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, itemId));
-        message.addExtra(id);
-
-        return message;
+    private ChatMessageGenerator() {
     }
 
-    public static TextComponent generateHeader(ItemPage page, String playerName) {
-        TextComponent message = new TextComponent(ChatColor.YELLOW + " ---- " + ChatColor.GOLD + "ItemsOwned"
-                + ChatColor.YELLOW + " -- " + ChatColor.GOLD + "Page " + ChatColor.RED + page.getCurrentPage() +
-                ChatColor.GOLD + "/" + ChatColor.RED + page.getTotalPages() + ChatColor.YELLOW + " ----\n");
-
-        message.addExtra(ChatColor.GOLD + "Player: " + ChatColor.RED + playerName + "\n");
-
-        return message;
+    public static Component generateHeader(ItemEventPage page, String itemId, String itemData, String ownerName) throws IOException {
+        return Component.text()
+                .append(Component.text(" ---- ", NamedTextColor.YELLOW))
+                .append(Component.text("ItemHistory", NamedTextColor.GOLD))
+                .append(Component.text(" -- ", NamedTextColor.YELLOW))
+                .append(Component.text("Page ", NamedTextColor.GOLD))
+                .append(Component.text(page.getCurrentPage(), NamedTextColor.RED))
+                .append(Component.text("/", NamedTextColor.GOLD))
+                .append(Component.text(page.getTotalPages(), NamedTextColor.RED))
+                .append(Component.text(" ----", NamedTextColor.YELLOW))
+                .appendNewline()
+                .append(Component.text("Item ID: ", NamedTextColor.GOLD))
+                .append(generateItemIdLink(itemId, itemData, ownerName, false, false))
+                .appendNewline()
+                .build();
     }
 
-    public static TextComponent generate(ItemPage page) throws ChatMessageGeneratorException, IOException {
-        TextComponent message = new TextComponent();
+    public static Component generateHeader(ItemPage page, String playerName) {
+        return Component.text()
+                .append(Component.text(" ---- ", NamedTextColor.YELLOW))
+                .append(Component.text("ItemsOwned", NamedTextColor.GOLD))
+                .append(Component.text(" -- ", NamedTextColor.YELLOW))
+                .append(Component.text("Page ", NamedTextColor.GOLD))
+                .append(Component.text(page.getCurrentPage(), NamedTextColor.RED))
+                .append(Component.text("/", NamedTextColor.GOLD))
+                .append(Component.text(page.getTotalPages(), NamedTextColor.RED))
+                .append(Component.text(" ----", NamedTextColor.YELLOW))
+                .appendNewline()
+                .append(Component.text("Player: ", NamedTextColor.GOLD))
+                .append(Component.text(playerName, NamedTextColor.RED))
+                .appendNewline()
+                .build();
+    }
 
+    public static Component generate(ItemPage page, String ownerName) throws ChatMessageGeneratorException, IOException {
         if (page.getTotalPages() == 0) {
-            throw new ChatMessageGeneratorException(ChatColor.RED + "No items owned by that player.");
+            throw new ChatMessageGeneratorException("No items owned by that player.");
         }
 
         if (page.getCurrentPage() > page.getTotalPages()) {
-            throw new ChatMessageGeneratorException(ChatColor.RED + "Unknown chapter.");
+            throw new ChatMessageGeneratorException("Unknown chapter.");
         }
 
+        Component message = Component.empty();
         int count = 1;
         for (Item item : page.getResult()) {
-            message.addExtra(ChatColor.GRAY + DATE_FORMAT.format(item.getDate()) + ": ");
-
-            TextComponent itemIdPart;
-            if (item.getLastEventDestruction()) {
-                itemIdPart = new TextComponent(ChatColor.GRAY + "" + ChatColor.STRIKETHROUGH + "[" + item.getId() + "]");
-            } else {
-                itemIdPart = new TextComponent(ChatColor.WHITE + "[" + ChatColor.YELLOW + item.getId() + ChatColor.WHITE + "]");
-            }
-
-            itemIdPart.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, generateTooltip(item.getData())));
-            itemIdPart.setClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, item.getId()));
-            message.addExtra(itemIdPart);
+            message = message
+                    .append(Component.text(DATE_FORMAT.format(item.getDate()) + ": ", NamedTextColor.GRAY))
+                    .append(generateItemIdLink(
+                            item.getId(),
+                            item.getData(),
+                            ownerName,
+                            item.getLastEventDestruction(),
+                            true
+                    ));
 
             if (count != page.getResult().size()) {
-                message.addExtra("\n");
+                message = message.appendNewline();
             }
 
             count++;
@@ -81,21 +95,21 @@ public final class ChatMessageGenerator {
         return message;
     }
 
-    public static TextComponent generate(ItemEventPage page) throws ChatMessageGeneratorException {
-        TextComponent message = new TextComponent();
-
+    public static Component generate(ItemEventPage page) throws ChatMessageGeneratorException {
         if (page.getTotalPages() == 0) {
-            throw new ChatMessageGeneratorException(ChatColor.RED + "No history found for that item ID.");
+            throw new ChatMessageGeneratorException("No history found for that item ID.");
         }
 
         if (page.getCurrentPage() > page.getTotalPages()) {
-            throw new ChatMessageGeneratorException(ChatColor.RED + "Unknown chapter.");
+            throw new ChatMessageGeneratorException("Unknown chapter.");
         }
 
+        Component message = Component.empty();
         int count = 1;
         for (ItemEvent event : page.getResult()) {
-            message.addExtra(ChatColor.GRAY + DATE_FORMAT.format(event.getDate()) + ": ");
-            message.addExtra(ChatColor.WHITE + event.getItemEventType() + " ");
+            message = message
+                    .append(Component.text(DATE_FORMAT.format(event.getDate()) + ": ", NamedTextColor.GRAY))
+                    .append(Component.text(event.getItemEventType() + " ", NamedTextColor.WHITE));
 
             StringBuilder locationText = new StringBuilder();
             if (event.getWorld() != null) {
@@ -104,18 +118,26 @@ public final class ChatMessageGenerator {
 
             locationText.append(event.getX()).append(", ").append(event.getY()).append(", ").append(event.getZ());
 
-            TextComponent loc = new TextComponent(ChatColor.GOLD + "[loc]");
-            loc.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(locationText.toString())));
-            message.addExtra(loc);
+            message = message.append(Component.text("[loc]", NamedTextColor.GOLD)
+                    .hoverEvent(Component.text(locationText.toString())));
 
             if (event.getPlayerId() != null) {
-                TextComponent pl = new TextComponent(" " + ChatColor.GOLD + "[pl]");
-                pl.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(Bukkit.getOfflinePlayer(UUID.fromString(event.getPlayerId())).getName())));
-                message.addExtra(pl);
+                String playerName = event.getPlayerId();
+                try {
+                    OfflinePlayer eventPlayer = Bukkit.getOfflinePlayer(UUID.fromString(event.getPlayerId()));
+                    if (eventPlayer.getName() != null) {
+                        playerName = eventPlayer.getName();
+                    }
+                } catch (IllegalArgumentException ignored) {
+                    // Preserve the recorded value when a legacy player ID is not a UUID.
+                }
+
+                message = message.append(Component.text(" [pl]", NamedTextColor.GOLD)
+                        .hoverEvent(Component.text(playerName)));
             }
 
             if (count != page.getResult().size()) {
-                message.addExtra("\n");
+                message = message.appendNewline();
             }
 
             count++;
@@ -124,32 +146,67 @@ public final class ChatMessageGenerator {
         return message;
     }
 
-    private static Text generateTooltip(String data) throws IOException {
-        TextComponent text = new TextComponent();
+    private static Component generateItemIdLink(
+            String itemId,
+            String itemData,
+            String ownerName,
+            boolean destroyed,
+            boolean openHistory
+    ) throws IOException {
+        ItemStack hoverItem = addMissingTrackingLore(ItemSerialization.fromBase64(itemData), itemId, ownerName);
 
-        ItemStack item = ItemSerialization.fromBase64(data);
-
-        String name = item.getType().toString()
-                .toLowerCase(Locale.ROOT)
-                .replace("_", " ");
-
-        text.addExtra(ChatColor.AQUA + WordUtils.capitalize(name));
-
-        if (item.getItemMeta() != null) {
-            text.addExtra("\n");
-
-            item.getItemMeta().getEnchants().keySet().forEach(enchant -> text.addExtra(ChatColor.GRAY + WordUtils.capitalize(enchant.getKey().getKey().replace("_", "")) + " " +
-                    RomanNumber.toRoman(item.getItemMeta().getEnchants().get(enchant)) +
-                    "\n"));
-
-            if (item.getItemMeta().getLore() != null) {
-                text.addExtra(String.join("\n", item.getItemMeta().getLore()));
-            }
-            text.addExtra("\n");
+        Component link;
+        if (destroyed) {
+            link = Component.text("[" + itemId + "]", NamedTextColor.GRAY, TextDecoration.STRIKETHROUGH);
+        } else {
+            link = Component.text()
+                    .append(Component.text("[", NamedTextColor.WHITE))
+                    .append(Component.text(itemId, NamedTextColor.YELLOW))
+                    .append(Component.text("]", NamedTextColor.WHITE))
+                    .build();
         }
 
-        text.addExtra("\n" + ChatColor.GRAY + ChatColor.ITALIC + "Click to copy Item ID.");
+        ClickEvent clickEvent = openHistory
+                ? ClickEvent.runCommand("/itemhistory " + itemId)
+                : ClickEvent.copyToClipboard(itemId);
 
-        return new Text(new ComponentBuilder(text).create());
+        return link.hoverEvent(hoverItem.asHoverEvent()).clickEvent(clickEvent);
+    }
+
+    private static ItemStack addMissingTrackingLore(ItemStack storedItem, String itemId, String ownerName) {
+        ItemMeta storedMeta = storedItem.getItemMeta();
+        if (storedMeta == null) {
+            return storedItem;
+        }
+
+        List<Component> storedLore = storedMeta.lore();
+        if (storedLore != null && storedLore.stream()
+                .map(PLAIN_TEXT::serialize)
+                .anyMatch(line -> line.equals(ITEM_ID_PREFIX + itemId))) {
+            return storedItem;
+        }
+
+        ItemStack hoverItem = storedItem.clone();
+        ItemMeta hoverMeta = hoverItem.getItemMeta();
+        if (hoverMeta == null) {
+            return storedItem;
+        }
+
+        List<Component> hoverLore = hoverMeta.lore();
+        List<Component> updatedLore = hoverLore == null ? new ArrayList<>() : new ArrayList<>(hoverLore);
+        updatedLore.add(trackingLore("Owner: " + displayOwnerName(ownerName)));
+        updatedLore.add(trackingLore(ITEM_ID_PREFIX + itemId));
+        hoverMeta.lore(updatedLore);
+        hoverItem.setItemMeta(hoverMeta);
+        return hoverItem;
+    }
+
+    private static Component trackingLore(String text) {
+        return Component.text(text, NamedTextColor.RED)
+                .decoration(TextDecoration.ITALIC, false);
+    }
+
+    private static String displayOwnerName(String ownerName) {
+        return ownerName == null || ownerName.isBlank() ? "Unknown" : ownerName;
     }
 }

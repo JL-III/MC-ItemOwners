@@ -6,7 +6,7 @@ import java.util.UUID;
 
 public class RateLimiter {
     private final long LIMIT;
-    private HashMap<UUID, Date> map = new HashMap<>();
+    private final HashMap<UUID, Date> map = new HashMap<>();
 
     public RateLimiter(long limit) {
         this.LIMIT = limit;

@@ -18,3 +18,13 @@ disabled-worlds: ['example-world']
 
 # If you use clear inventory confirmation, set this to true
 clear-inventory-confirmation: false
+
+# Paid recovery is available only for confirmed despawns recorded after this feature is installed.
+recovery:
+  enabled: true
+
+  # Flat amount withdrawn through Vault when an item is recovered.
+  fee: 1000.0
+
+  # Set to 0 for no expiry. This should normally be no longer than your event retention period.
+  max-age-days: 14
